@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math Alarm Timer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #0f0f1a;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #7c6fff;
+    font-weight: 600;
+  }
+
+  /* ── Preset buttons ── */
+  .presets {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .preset-btn {
+    background: #1e1e30;
+    border: 2px solid #2e2e50;
+    color: #ccc;
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .preset-btn:hover, .preset-btn.active {
+    border-color: #7c6fff;
+    color: #fff;
+    background: #2a2a45;
+  }
+
+  /* custom input row */
+  .custom-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .custom-row input {
+    width: 64px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 2px solid #2e2e50;
+    background: #1e1e30;
+    color: #fff;
+    font-size: 1rem;
+    text-align: center;
+  }
+
+  .custom-row input:focus { outline: none; border-color: #7c6fff; }
+
+  .custom-row label { color: #888; font-size: 0.9rem; }
+
+  /* ── Ring clock ── */
+  .clock-wrap {
+    position: relative;
+    width: 240px;
+    height: 240px;
+  }
+
+  .clock-wrap svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+  }
+
+  .ring-bg { fill: none; stroke: #1e1e30; stroke-width: 10; }
+  .ring-fg {
+    fill: none;
+    stroke: #7c6fff;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.4s;
+  }
+
+  .clock-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  #time-display {
+    font-size: 3.2rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #phase-label {
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  /* ── Controls ── */
+  .controls { display: flex; gap: 12px; }
+
+  .btn {
+    padding: 12px 32px;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+
+  .btn:active { transform: scale(0.96); }
+
+  .btn-primary { background: #7c6fff; color: #fff; }
+  .btn-primary:hover { background: #9483ff; }
+  .btn-ghost {
+    background: transparent;
+    border: 2px solid #2e2e50;
+    color: #aaa;
+  }
+  .btn-ghost:hover { border-color: #7c6fff; color: #fff; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* ── Alarm overlay ── */
+  #alarm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 5, 30, 0.92);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+  }
+
+  #alarm-overlay.show { display: flex; }
+
+  .alarm-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #ff6b6b;
+    animation: pulse 0.8s infinite alternate;
+  }
+
+  @keyframes pulse { to { opacity: 0.5; } }
+
+  .alarm-subtitle { color: #aaa; font-size: 0.95rem; text-align: center; }
+
+  .math-card {
+    background: #1a1a2e;
+    border: 2px solid #7c6fff;
+    border-radius: 20px;
+    padding: 36px 48px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    min-width: 320px;
+  }
+
+  .problem-text {
+    font-size: 2.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .math-input {
+    width: 140px;
+    padding: 12px 16px;
+    font-size: 1.8rem;
+    text-align: center;
+    border-radius: 12px;
+    border: 2px solid #3a3a60;
+    background: #0f0f1a;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .math-input:focus { outline: none; border-color: #7c6fff; }
+  .math-input.wrong { border-color: #ff6b6b; animation: shake 0.3s; }
+  .math-input.correct { border-color: #4ade80; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+  }
+
+  .progress-dots { display: flex; gap: 10px; }
+
+  .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #2e2e50;
+    transition: background 0.3s;
+  }
+
+  .dot.done { background: #4ade80; }
+  .dot.current { background: #7c6fff; }
+
+  .submit-btn {
+    background: #7c6fff;
+    color: #fff;
+    border: none;
+    padding: 12px 40px;
+    border-radius: 999px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .submit-btn:hover { background: #9483ff; }
+
+  /* ── History ── */
+  .history { font-size: 0.85rem; color: #555; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>⏱ Math Alarm Timer</h1>
+
+<!-- Presets -->
+<div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+  <div class="presets">
+    <button class="preset-btn active" data-min="5">5 min</button>
+    <button class="preset-btn" data-min="10">10 min</button>
+    <button class="preset-btn" data-min="15">15 min</button>
+    <button class="preset-btn" data-min="25">25 min</button>
+    <button class="preset-btn" data-min="45">45 min</button>
+  </div>
+  <div class="custom-row">
+    <label>Custom:</label>
+    <input id="custom-min" type="number" min="1" max="180" placeholder="min">
+    <label>min</label>
+    <input id="custom-sec" type="number" min="0" max="59" placeholder="sec">
+    <label>sec</label>
+    <button class="preset-btn" id="custom-set-btn">Set</button>
+  </div>
+</div>
+
+<!-- Clock ring -->
+<div class="clock-wrap">
+  <svg viewBox="0 0 100 100">
+    <circle class="ring-bg" cx="50" cy="50" r="44"/>
+    <circle class="ring-fg" id="ring" cx="50" cy="50" r="44"
+      stroke-dasharray="276.46" stroke-dashoffset="0"/>
+  </svg>
+  <div class="clock-label">
+    <div id="time-display">05:00</div>
+    <div id="phase-label">Ready</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn btn-primary" id="start-btn">Start</button>
+  <button class="btn btn-ghost" id="reset-btn">Reset</button>
+</div>
+
+<div class="history" id="history-text"></div>
+
+<!-- Alarm overlay -->
+<div id="alarm-overlay">
+  <div class="alarm-title">⏰ Time's Up!</div>
+  <div class="alarm-subtitle">Solve all 3 problems to silence the alarm.</div>
+
+  <div class="math-card">
+    <div class="progress-dots" id="dots">
+      <div class="dot current" id="dot-0"></div>
+      <div class="dot" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+    </div>
+    <div class="problem-text" id="problem-text">? + ? = ?</div>
+    <input class="math-input" id="math-input" type="number" placeholder="?" autocomplete="off">
+    <button class="submit-btn" id="submit-btn">Check ✓</button>
+  </div>
+</div>
+
+<script>
+// ── State ──
+const CIRCUMFERENCE = 2 * Math.PI * 44; // ~276.46
+let totalSeconds = 5 * 60;
+let remaining = totalSeconds;
+let interval = null;
+let running = false;
+let sessionsCompleted = 0;
+
+// ── DOM refs ──
+const ring       = document.getElementById('ring');
+const timeDisp   = document.getElementById('time-display');
+const phaseLabel = document.getElementById('phase-label');
+const startBtn   = document.getElementById('start-btn');
+const resetBtn   = document.getElementById('reset-btn');
+const overlay    = document.getElementById('alarm-overlay');
+const histText   = document.getElementById('history-text');
+
+// ── Alarm audio (oscillator-based, no file needed) ──
+let audioCtx = null;
+let alarmNodes = [];
+
+function startAlarm() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const playBeep = () => {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.4);
+    alarmNodes.push(osc);
+  };
+  playBeep();
+  const id = setInterval(playBeep, 700);
+  alarmNodes.push({ stop: () => clearInterval(id) });
+}
+
+function stopAlarm() {
+  alarmNodes.forEach(n => { try { n.stop(); } catch(e){} });
+  alarmNodes = [];
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+}
+
+// ── Timer logic ──
+function fmt(s) {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+function updateRing() {
+  const pct = remaining / totalSeconds;
+  const offset = CIRCUMFERENCE * (1 - pct);
+  ring.style.strokeDashoffset = offset;
+  // colour shift: green → amber → red as time runs low
+  if (pct > 0.5)       ring.style.stroke = '#7c6fff';
+  else if (pct > 0.2)  ring.style.stroke = '#f59e0b';
+  else                 ring.style.stroke = '#ff6b6b';
+}
+
+function tick() {
+  remaining--;
+  timeDisp.textContent = fmt(remaining);
+  updateRing();
+  if (remaining <= 0) {
+    clearInterval(interval);
+    interval = null;
+    running = false;
+    startBtn.textContent = 'Start';
+    phaseLabel.textContent = '⚠ Alarm!';
+    triggerAlarm();
+  }
+}
+
+function startTimer() {
+  if (running) {
+    // Pause
+    clearInterval(interval);
+    interval = null;
+    running = false;
+    startBtn.textContent = 'Resume';
+    phaseLabel.textContent = 'Paused';
+  } else {
+    if (remaining <= 0) return;
+    running = true;
+    startBtn.textContent = 'Pause';
+    phaseLabel.textContent = 'Running';
+    interval = setInterval(tick, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(interval);
+  interval = null;
+  running = false;
+  remaining = totalSeconds;
+  timeDisp.textContent = fmt(remaining);
+  phaseLabel.textContent = 'Ready';
+  startBtn.textContent = 'Start';
+  ring.style.strokeDashoffset = 0;
+  ring.style.stroke = '#7c6fff';
+}
+
+function setDuration(seconds) {
+  totalSeconds = seconds;
+  resetTimer();
+}
+
+// ── Preset / custom buttons ──
+document.querySelectorAll('.preset-btn[data-min]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setDuration(parseInt(btn.dataset.min) * 60);
+  });
+});
+
+document.getElementById('custom-set-btn').addEventListener('click', () => {
+  const m = parseInt(document.getElementById('custom-min').value) || 0;
+  const s = parseInt(document.getElementById('custom-sec').value) || 0;
+  const total = m * 60 + s;
+  if (total < 1) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('custom-set-btn').classList.add('active');
+  setDuration(total);
+});
+
+startBtn.addEventListener('click', startTimer);
+resetBtn.addEventListener('click', resetTimer);
+
+// ── Math alarm ──
+let problems = [];
+let currentProblem = 0;
+
+function genProblem() {
+  const op = Math.random() < 0.5 ? '+' : '-';
+  let a, b;
+  if (op === '+') {
+    a = Math.floor(Math.random() * 50) + 10;
+    b = Math.floor(Math.random() * 50) + 10;
+  } else {
+    a = Math.floor(Math.random() * 50) + 30;
+    b = Math.floor(Math.random() * a);
+  }
+  return { a, b, op, answer: op === '+' ? a + b : a - b };
+}
+
+function triggerAlarm() {
+  problems = [genProblem(), genProblem(), genProblem()];
+  currentProblem = 0;
+  showProblem();
+  overlay.classList.add('show');
+  startAlarm();
+  document.getElementById('math-input').focus();
+}
+
+function showProblem() {
+  const p = problems[currentProblem];
+  document.getElementById('problem-text').textContent = `${p.a} ${p.op} ${p.b} = ?`;
+  const inp = document.getElementById('math-input');
+  inp.value = '';
+  inp.className = 'math-input';
+  inp.focus();
+
+  // Update dots
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.className = 'dot' + (i < currentProblem ? ' done' : i === currentProblem ? ' current' : '');
+  }
+}
+
+function checkAnswer() {
+  const inp = document.getElementById('math-input');
+  const val = parseInt(inp.value);
+  if (isNaN(val)) return;
+
+  if (val === problems[currentProblem].answer) {
+    inp.className = 'math-input correct';
+    document.getElementById(`dot-${currentProblem}`).className = 'dot done';
+    currentProblem++;
+    if (currentProblem >= 3) {
+      // All solved!
+      stopAlarm();
+      overlay.classList.remove('show');
+      sessionsCompleted++;
+      histText.textContent = `Sessions completed today: ${sessionsCompleted}`;
+      phaseLabel.textContent = 'Done!';
+      ring.style.stroke = '#4ade80';
+    } else {
+      setTimeout(showProblem, 300);
+    }
+  } else {
+    inp.className = 'math-input wrong';
+    inp.value = '';
+    setTimeout(() => { inp.className = 'math-input'; inp.focus(); }, 350);
+  }
+}
+
+document.getElementById('submit-btn').addEventListener('click', checkAnswer);
+document.getElementById('math-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkAnswer();
+});
+
+// initialise ring
+ring.style.strokeDasharray = CIRCUMFERENCE;
+ring.style.strokeDashoffset = 0;
+timeDisp.textContent = fmt(remaining);
+</script>
+</body>
+</html>
